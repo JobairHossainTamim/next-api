@@ -1,16 +1,25 @@
 import connect from "@/lib/db";
 import Users from "@/lib/modals/modals";
+import { paginate } from "@/lib/utils/pagination";
 import { Types } from "mongoose";
 import { NextResponse } from "next/server";
 
-export const GET = async () => {
+export const GET = async (request: Request) => {
   try {
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = parseInt(searchParams.get("limit") || "10");
+
     await connect();
-    const users = await Users.find();
-    return new NextResponse(JSON.stringify(users), {
+
+    // 🔁 Apply pagination utility
+    const result = await paginate(Users, {}, { page, limit });
+
+    return new NextResponse(JSON.stringify(result), {
       status: 200,
     });
   } catch (error: any) {
+    console.error("GET /api/users error:", error);
     return new NextResponse("Failed to fetch users", {
       status: 500,
     });

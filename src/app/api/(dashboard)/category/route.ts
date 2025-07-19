@@ -3,46 +3,42 @@ import User from "@/lib/modals/modals";
 import Category from "@/lib/modals/category";
 import { Types } from "mongoose";
 import { NextResponse } from "next/server";
+import { paginate } from "@/lib/utils/pagination";
 
 export const GET = async (request: Request) => {
   try {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get("userId");
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = parseInt(searchParams.get("limit") || "10");
 
     if (!userId || !Types.ObjectId.isValid(userId)) {
       return new NextResponse(
-        JSON.stringify({ message: "Invalid or missing user Id " }),
-        {
-          status: 400,
-        }
+        JSON.stringify({ message: "Invalid or missing user Id" }),
+        { status: 400 }
       );
     }
+
     await connect();
 
     const user = await User.findById(userId);
-
     if (!user) {
       return new NextResponse(JSON.stringify({ message: "User not found" }), {
         status: 404,
       });
     }
 
-    const category = await Category.find({ user: new Types.ObjectId(userId) });
+    const result = await paginate(
+      Category,
+      { user: new Types.ObjectId(userId) },
+      { page, limit }
+    );
 
-    if (!category) {
-      return new NextResponse(
-        JSON.stringify({ message: "Category not found" }),
-        {
-          status: 404,
-        }
-      );
-    }
-
-    return new NextResponse(JSON.stringify(category), {
+    return new NextResponse(JSON.stringify(result), {
       status: 200,
     });
   } catch (error: any) {
-    return new NextResponse("Failed to Fetching Categories", {
+    return new NextResponse("Failed to fetch categories", {
       status: 500,
     });
   }
