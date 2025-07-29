@@ -19,7 +19,6 @@ export const GET = async (request: Request) => {
       status: 200,
     });
   } catch (error: any) {
-    console.error("GET /api/users error:", error);
     return new NextResponse("Failed to fetch users", {
       status: 500,
     });

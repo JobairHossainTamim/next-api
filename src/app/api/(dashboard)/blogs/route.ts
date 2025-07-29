@@ -11,9 +11,13 @@ export const GET = async (request: Request) => {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get("userId");
     const categoryId = searchParams.get("categoryId");
+    const searchKeyword = searchParams.get("keywords") || "";
 
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "10");
+    const sortBy = searchParams.get("sortBy") || "createdAt";
+    const sortOrder =
+      (searchParams.get("sortOrder") as "asc" | "desc") || "desc";
 
     // ✅ Validate userId
     if (!userId || !Types.ObjectId.isValid(userId)) {
@@ -33,35 +37,60 @@ export const GET = async (request: Request) => {
       });
     }
 
-    // ✅ Ensure category exists
-    const category = await Category.findById(categoryId);
-    if (!category) {
+    // ✅ Ensure category exists if categoryId is provided
+    if (categoryId && !Types.ObjectId.isValid(categoryId)) {
       return new NextResponse(
-        JSON.stringify({ message: "Category not found" }),
-        { status: 404 }
+        JSON.stringify({ message: "Invalid category Id" }),
+        { status: 400 }
       );
     }
 
-    // ✅ Filter blogs by user and category
-    const filter = {
+    if (categoryId) {
+      const category = await Category.findById(categoryId);
+      if (!category) {
+        return new NextResponse(
+          JSON.stringify({ message: "Category not found" }),
+          { status: 404 }
+        );
+      }
+    }
+
+    // ✅ Filter
+    const filter: any = {
       user: new Types.ObjectId(userId),
-      category: new Types.ObjectId(categoryId!),
     };
 
-    // ✅ Apply pagination here
-    const result = await paginate(Blog, filter, { page, limit });
+    if (categoryId) {
+      filter.category = new Types.ObjectId(categoryId);
+    }
+
+    if (searchKeyword) {
+      filter.$or = [
+        { title: { $regex: searchKeyword, $options: "i" } },
+        { content: { $regex: searchKeyword, $options: "i" } },
+      ];
+    }
+
+    const result = await paginate(Blog, filter, {
+      page,
+      limit,
+      sortBy,
+      sortOrder,
+    });
 
     return new NextResponse(JSON.stringify(result), {
       status: 200,
     });
   } catch (error: any) {
     return new NextResponse(
-      JSON.stringify({ message: "Failed to fetch blogs" }),
+      JSON.stringify({
+        message: "Failed to fetch blogs",
+        error: error.message,
+      }),
       { status: 500 }
     );
   }
 };
-
 export const POST = async (request: Request) => {
   try {
     const { searchParams } = new URL(request.url);

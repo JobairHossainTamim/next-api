@@ -1,6 +1,8 @@
 interface PaginationOptions {
   page?: number;
   limit?: number;
+  sortBy?: string;
+  sortOrder?: "asc" | "desc";
 }
 
 interface PaginationResult<T> {
@@ -13,14 +15,25 @@ interface PaginationResult<T> {
 export async function paginate<T>(
   model: any,
   filter = {},
-  { page = 1, limit = 10 }: PaginationOptions = {},
+  {
+    page = 1,
+    limit = 10,
+    sortBy = "createdAt", // ✅ default sort field
+    sortOrder = "desc", // ✅ default order
+  }: PaginationOptions = {},
   projection = null,
   options = {}
 ): Promise<PaginationResult<T>> {
   const skip = (page - 1) * limit;
+  const sortOptions = { [sortBy]: sortOrder === "asc" ? 1 : -1 };
 
   const [data, totalItems] = await Promise.all([
-    model.find(filter, projection, { ...options, skip, limit }),
+    model.find(filter, projection, {
+      ...options,
+      skip,
+      limit,
+      sort: sortOptions,
+    }),
     model.countDocuments(filter),
   ]);
 
